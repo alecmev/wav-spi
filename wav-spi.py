@@ -114,6 +114,23 @@ def getStatus(handle):
     FT_Read(handle, byref(status), DWORD(dataLen), byref(bytes))
     return Status(decodeByte(status[dataLen - 17:dataLen - 1]))
 
+def read(handle, blockId):
+    data = encodeData(
+        [MAIN_PAGE_READ, (blockId & 0xFC0) >> 6, (blockId & 0x3F) << 2, 0] +
+        [0] * 532
+    )
+    dataLen = len(data)
+    bytes = DWORD()
+    FT_Write(
+        handle, byref((BYTE * dataLen)(*data)), DWORD(dataLen), byref(bytes)
+    )
+    disable(handle)
+    block = (BYTE * dataLen)()
+    FT_Read(
+        handle, byref(block), DWORD(dataLen), byref(bytes)
+    )
+    return decodeData(block)
+
 def write(handle, block, blockLen, blockId, BUFFER_W, BUFFER_TO_MAIN_WE):
     data = encodeData([BUFFER_W, 0, 0, 0] + block)
     dataLen = len(data)
