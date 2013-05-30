@@ -64,37 +64,30 @@ def encodeByte(byte):
         bit = MOSI * (byte % 2)
         byte >>= 1
         result.insert(0, bit)
-        result.insert(1, bit | CLK)
 
-    return [0, CLK] * (8 - len(result) / 2) + result
+    return [0] * (8 - len(result)) + result
 
 def decodeByte(byte):
-    ignore = False
     result = 0
     power = 128
     for bit in byte:
-        ignore = not ignore
-        if ignore:
-            continue
-
         result += power * ((bit & MISO) / MISO)
         power >>= 1
 
     return result
 
 def encodeData(data):
-    result = [0]
+    result = []
     for byte in data:
         result += encodeByte(byte)
 
-    return result + [0]
+    return result + [CS]
 
 def decodeData(data):
-    dataLen = len(data)
-    data = data[1:dataLen - 1]
+    data = data[1:]
     result = []
-    for i in range(dataLen / 16):
-        result.append(decodeByte(data[i*16:i*16 + 16]))
+    for i in range(len(data) / 8):
+        result.append(decodeByte(data[i*8:i*8 + 8]))
 
     return result
 
@@ -109,10 +102,9 @@ def getStatus(handle):
     FT_Write(
         handle, byref((BYTE * dataLen)(*data)), DWORD(dataLen), byref(bytes)
     )
-    disable(handle)
     status = (BYTE * dataLen)()
     FT_Read(handle, byref(status), DWORD(dataLen), byref(bytes))
-    return Status(decodeByte(status[dataLen - 17:dataLen - 1]))
+    return Status(decodeByte(status[-8:]))
 
 def read(handle, blockId):
     data = encodeData(
@@ -124,12 +116,11 @@ def read(handle, blockId):
     FT_Write(
         handle, byref((BYTE * dataLen)(*data)), DWORD(dataLen), byref(bytes)
     )
-    disable(handle)
     block = (BYTE * dataLen)()
     FT_Read(
         handle, byref(block), DWORD(dataLen), byref(bytes)
     )
-    return decodeData(block)
+    return decodeData(block)[8:]
 
 def write(handle, block, blockLen, blockId, BUFFER_W, BUFFER_TO_MAIN_WE):
     data = encodeData([BUFFER_W, 0, 0, 0] + block)
@@ -138,7 +129,6 @@ def write(handle, block, blockLen, blockId, BUFFER_W, BUFFER_TO_MAIN_WE):
     FT_Write(
         handle, byref((BYTE * dataLen)(*data)), DWORD(dataLen), byref(bytes)
     )
-    disable(handle)
     FT_Read(
         handle, byref((BYTE * dataLen)()), DWORD(dataLen), byref(bytes)
     )
@@ -153,7 +143,6 @@ def write(handle, block, blockLen, blockId, BUFFER_W, BUFFER_TO_MAIN_WE):
     FT_Write(
         handle, byref((BYTE * dataLen)(*data)), DWORD(dataLen), byref(bytes)
     )
-    disable(handle)
     FT_Read(
         handle, byref((BYTE * dataLen)()), DWORD(dataLen), byref(bytes)
     )
@@ -189,10 +178,15 @@ class MainWindow(QtGui.QMainWindow):
         self.uploadButton = QtGui.QPushButton('Upload')
         self.uploadButton.clicked.connect(self.upload)
         self.uploadButton.setEnabled(False)
+
+        self.verifyButton = QtGui.QPushButton('Verify')
+        self.verifyButton.clicked.connect(self.verify)
+        self.verifyButton.setEnabled(False)
         
         grid.addWidget(self.fileButton, 0, 0)
         grid.addWidget(self.uploadBar, 1, 0)
         grid.addWidget(self.uploadButton, 2, 0)
+        grid.addWidget(self.verifyButton, 3, 0)
 
         self.status = self.statusBar().showMessage
         self.status('Ready')
@@ -255,22 +249,20 @@ class MainWindow(QtGui.QMainWindow):
             ) if ready else 'Pick WAV file...'
         )
         self.uploadButton.setEnabled(ready)
+        self.verifyButton.setEnabled(ready)
         self.progress(0)
 
-    def upload(self):
+    def action(self, isUpload):
         self.disableButtons()
         if not os.path.exists(self.filePath):
             self.update(False, 'ERROR: File does not exist')
             self.enableButtons()
-            return
+            return False
 
         handle = PVOID()
         info = FT_PROGRAM_DATA(
-            Signature1=0, Signature2=0xffffffff, Version=2,
             Manufacturer = cast(BUFFER(256), STRING),
-            ManufacturerId = cast(BUFFER(256), STRING),
-            Description = cast(BUFFER(256), STRING),
-            SerialNumber = cast(BUFFER(256), STRING)
+            Description = cast(BUFFER(256), STRING)
         )
         found = False
         i = -1
@@ -293,42 +285,47 @@ class MainWindow(QtGui.QMainWindow):
         if not found:
             self.status('ERROR: No device found')
             self.enableButtons()
-            return
+            return False
 
         if (
             FT_SetUSBParameters(handle, DWORD(65536), DWORD(0)) != FT_OK or
-            FT_SetBitMode(handle, UCHAR(0), UCHAR(0)) != FT_OK or
-            FT_SetBitMode(
-                handle, UCHAR(CLK | MOSI | CS), UCHAR(0x4)
-            ) != FT_OK or
+            FT_SetBitMode(handle, UCHAR(MOSI | CS), UCHAR(0x4)) != FT_OK or
             FT_SetDivisor(handle, DWORD(0)) != FT_OK or
             FT_SetLatencyTimer(handle, UCHAR(2)) != FT_OK
         ):
             FT_Close(handle)
             self.status('ERROR: Device initialization failed')
             self.enableButtons()
-            return
+            return False
 
         disable(handle)
         if not getStatus(handle).valid:
             FT_Close(handle)
             self.status('ERROR: No flash connected')
             self.enableButtons()
-            return
+            return False
 
-        self.status('Uploading...')
+        self.status('Uploading...' if isUpload else 'Verifying...')
         self.worker.start(
             handle, self.filePath, self.sampleRate,
-            self.headerSize, self.dataSize
+            self.headerSize, self.dataSize, isUpload
         )
+
+    def upload(self):
+        self.action(True)
+
+    def verify(self):
+        self.action(False)
 
     def disableButtons(self):
         self.fileButton.setEnabled(False)
         self.uploadButton.setEnabled(False)
+        self.verifyButton.setEnabled(False)
 
     def enableButtons(self):
         self.fileButton.setEnabled(True)
         self.uploadButton.setEnabled(True)
+        self.verifyButton.setEnabled(True)
 
 class WorkerThread(QtCore.QThread):
 
@@ -342,13 +339,16 @@ class WorkerThread(QtCore.QThread):
         self.progress.connect(progress)
         self.enableButtons.connect(enableButtons)
 
-    def start(self, handle, filePath, sampleRate, headerSize, dataSize):
+    def start(
+        self, handle, filePath, sampleRate, headerSize, dataSize, isUpload
+    ):
         self.handle = handle
         self.filePath = filePath
         self.sampleRate = sampleRate
         self.headerSize = headerSize
         self.dataSize = dataSize
         self.samples = dataSize / 2
+        self.isUpload = isUpload
         QtCore.QThread.start(self)
 
     def run(self):
@@ -391,10 +391,14 @@ class WorkerThread(QtCore.QThread):
                     pageLen += 8
                     pageSize = 528
 
-                if useFirst:
-                    write1(self.handle, page, pageLen, pageId)
+                if self.isUpload:
+                    if useFirst:
+                        write1(self.handle, page, pageLen, pageId)
+                    else:
+                        write2(self.handle, page, pageLen, pageId)
                 else:
-                    write2(self.handle, page, pageLen, pageId)
+                    if read(self.handle, pageId)[:pageLen] != page:
+                        raise Exception()
 
                 self.progress.emit(
                     100 - int(floor((remaining * 100.0) / self.dataSize))
@@ -402,10 +406,16 @@ class WorkerThread(QtCore.QThread):
                 useFirst = not useFirst
                 pageId += 1
 
-            self.status.emit('Success! Loaded in %.3fs' % (clock() - lastClock))
+            self.status.emit(
+                'Success! ' + ('Uploaded' if self.isUpload else 'Verified') +
+                ' in %.3fs' % (clock() - lastClock)
+            )
         except Exception as e:
             print e
-            self.status.emit('ERROR: Upload failed, try again')
+            self.status.emit(
+                'ERROR: ' + ('upload' if self.isUpload else 'verification') +
+                ' failed, try again'
+            )
             
         FT_Close(self.handle)
         fileHandle.close()

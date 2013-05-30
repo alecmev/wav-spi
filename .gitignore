@@ -2,11 +2,11 @@
 build/
 dist/
 pyinstaller/
+wav/
 
 *.bat
 *.log
 *.pyc
 *.sublime-workspace
-*.wav
 
 test.py

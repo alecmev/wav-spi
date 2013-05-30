@@ -112,3 +112,9 @@ FT_Read.restype = ULONG
 
 FT_Write = ftd2xx.FT_Write # PVOID, POINTER(PVOID), DWORD, POINTER(DWORD)
 FT_Write.restype = ULONG
+
+FT_GetQueueStatus = ftd2xx.FT_GetQueueStatus # PVOID, POINTER(DWORD)
+FT_GetQueueStatus.restype = ULONG
+
+FT_Purge = ftd2xx.FT_Purge # PVOID, DWORD
+FT_Purge.restype = ULONG
