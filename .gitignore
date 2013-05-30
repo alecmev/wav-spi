@@ -1,0 +1,12 @@
+.venv/
+build/
+dist/
+pyinstaller/
+
+*.bat
+*.log
+*.pyc
+*.sublime-workspace
+*.wav
+
+test.py
