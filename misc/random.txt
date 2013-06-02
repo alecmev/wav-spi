@@ -1,0 +1,5 @@
+-std=c++11
+
+-Os -finline-small-functions -momit-leaf-frame-pointer
+
+configure -debug-and-release -opensource -static -nomake examples -nomake demos -no-rtti -no-openssl -no-opengl -no-sql-sqlite -platform win32-g++
