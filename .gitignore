@@ -1,12 +1,4 @@
-.venv/
-build/
-dist/
-pyinstaller/
-wav/
+bin/
 
-*.bat
-*.log
 *.pyc
 *.sublime-workspace
-
-test.py

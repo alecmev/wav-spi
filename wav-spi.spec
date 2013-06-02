@@ -9,10 +9,10 @@ exe = EXE(pyz,
           a.binaries + [('ftd2xx.dll', 'ftd2xx.dll', 'BINARY')],
           a.zipfiles,
           a.datas,
-          name=os.path.join('dist', 'wav-spi.exe'),
+          name=os.path.join('bin', 'wav-spi.exe'),
           debug=False,
           strip=None,
           upx=True,
           console=False )
 app = BUNDLE(exe,
-             name=os.path.join('dist', 'wav-spi.exe.app'))
+             name=os.path.join('bin', 'wav-spi.exe.app'))
