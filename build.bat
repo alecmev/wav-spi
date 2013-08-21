@@ -1,5 +1,6 @@
 @ECHO OFF
 
+RMDIR /S /Q bin
 IF "%1"=="debug" GOTO debug
 IF "%1"=="release" GOTO release
 GOTO end
@@ -13,7 +14,7 @@ qmake
 GOTO make
 
 :make
-CALL make %1
+CALL make release
 RMDIR /S /Q debug
 RMDIR /S /Q release
 DEL Makefile* wav-spi_plugin_import.cpp

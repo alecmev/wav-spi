@@ -5,14 +5,9 @@ TEMPLATE = app
 
 INCLUDEPATH += include
 LIBPATH += libs
-LIBS += -lftd2xx
-
-HEADERS = \
-	src/mainwindow.h
-
-SOURCES = \
-	src/main.cpp \
-	src/mainwindow.cpp
+LIBS += -lftd2xx -static -lpthread
+HEADERS = src/*.hpp
+SOURCES = src/*.cpp
 
 release: DESTDIR = bin/release
 debug: DESTDIR = bin/debug
