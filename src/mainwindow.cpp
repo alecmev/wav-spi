@@ -46,8 +46,6 @@ MainWindow::MainWindow()
     setFixedSize(256, minimumSizeHint().height());
     setWindowFlags(Qt::MSWindowsFixedSizeDialogHint);
     show();
-
-    
 }
 
 MainWindow::~MainWindow()
