@@ -9,8 +9,7 @@ LIBS += -lftd2xx -static -lpthread
 HEADERS = src/*.hpp
 SOURCES = src/*.cpp
 
-release: DESTDIR = bin/release
-debug: DESTDIR = bin/debug
+DESTDIR = bin
 
 OBJECTS_DIR = $$DESTDIR/.obj
 MOC_DIR = $$DESTDIR/.moc

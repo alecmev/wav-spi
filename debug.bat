@@ -1,4 +1,5 @@
 @ECHO OFF
 
 CALL build debug
-bin\release\wav-spi.exe
+IF NOT %ERRORLEVEL% == 0 EXIT /B
+CALL bin\wav-spi.exe

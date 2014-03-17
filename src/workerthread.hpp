@@ -1,60 +1,45 @@
-#ifndef WORKER_THREAD
-#define WORKER_THREAD
+#pragma once
 
+#include <list>
 #include <windows.h>
-#include <algorithm>
-#include <time.h>
+
+#include <QString>
+#include <QThread>
+#include <QtGlobal>
+
 #include "ftd2xx.h"
-#include "helper.hpp"
 
-#include <QtCore/QDebug>
-#include <QtCore/QObject>
-#include <QtCore/QString>
-#include <QtCore/QThread>
+#include "common.hpp"
 
-#define CS              0x10 // DTR >
-
-#define MAIN_PAGE_READ  0xD2
-#define STATUS_READ     0xD7
-#define BUFFER1_WRITE   0x84
-#define BUFFER2_WRITE   0x87
-#define BUFFER1_FLUSH   0x83
-#define BUFFER2_FLUSH   0x86
-
-class WorkerThread : public QThread
-{
+class WorkerThread : public QThread {
     Q_OBJECT
     using QThread::start;
 
 public slots:
-    void start(
-        std::list<char*> *pages, quint16 pageNumber, bool isUpload
-    );
+    void start(std::list<char *> &pages, bool isUpload);
 
 signals:
-    void status(QString message);
+    void status(const QString &message);
     void progress(int percentage);
-    void enableButtons();
-    void disableButtons();
+    void buttons(Buttons state);
 
 protected:
     void run() override;
 
 private:
-    void disable(FT_HANDLE handle);
-    char getStatus(FT_HANDLE handle);
-    bool isValid(FT_HANDLE handle);
-    bool isReady(FT_HANDLE handle);
-    char* read(FT_HANDLE handle, quint16 pageId);
-    bool write(
-        FT_HANDLE handle, bool firstBuffer, char *pageBuffer, quint16 pageId
-    );
+    quint32 pagesPerSector(quint32 flashsize);
+    void encodeHeader(char instruction, quint16 pageId);
+    char getStatus();
+    void whileBusy();
+    void whileReadOnly();
+    bool writeByte(char byte);
+    bool write(char *pageBuffer, quint16 pageId);
+    char *read(quint16 pageId);
 
-    char buffer[4289]; // (528 + 8) * 8 + 1
+    FT_HANDLE handle;
+    char buffer[PAGEBITS + 33];
     DWORD bytes;
-    std::list<char*> *pages;
+    std::list<char *> pages;
     quint16 pageNumber;
     bool isUpload;
 };
-
-#endif

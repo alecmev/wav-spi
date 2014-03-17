@@ -1,77 +1,58 @@
-#ifndef MAIN_WINDOW
-#define MAIN_WINDOW
+#pragma once
 
-#include <iostream>
+#include <list>
 #include <memory>
-#include <windows.h>
-#include <string>
-#include <unistd.h>
-#include "ftd2xx.h"
-#include "helper.hpp"
+
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QMainWindow>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QString>
+#include <QVBoxLayout>
+#include <QWidget>
+
+#include "common.hpp"
 #include "workerthread.hpp"
 
-#include <QtCore/QDebug>
-#include <QtCore/QDir>
-#include <QtCore/qendian.h>
-#include <QtCore/QEvent>
-#include <QtCore/QFile>
-#include <QtCore/QFileInfo>
-#include <QtCore/QIODevice>
-#include <QtCore/QObject>
-#include <QtCore/QSize>
-#include <QtCore/QString>
+using std::list;
+using std::vector;
 
-#include <QtWidgets/QBoxLayout>
-#include <QtWidgets/QFileDialog>
-#include <QtWidgets/QGridLayout>
-#include <QtWidgets/QLayout>
-#include <QtWidgets/QMainWindow>
-#include <QtWidgets/QProgressBar>
-#include <QtWidgets/QPushButton>
-#include <QtWidgets/QSizeGrip>
-#include <QtWidgets/QStatusBar>
-#include <QtWidgets/QWidget>
-
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
     MainWindow();
-    ~MainWindow();
 
 public slots:
-    void pick();
+    void refresh();
     void upload();
     void verify();
-
+    void status();
     void status(const QString &message);
-    void progress(int percentage);
-    void enableButtons(bool all = true);
-    void disableButtons(bool all = true);
+    void progress(int percentage = 0);
+    void buttons(Buttons state = Buttons::None);
 
 private:
-    void update(const QString &status = "© 2013 Orekus Ltd.");
-    void update(
-        const QString &status, const QString &baseName,
-        quint32 dataSize, quint32 sampleRate
-    );
+    bool load(const QString &path, quint16 offset);
 
-    std::unique_ptr<QWidget> widget;
-    std::unique_ptr<QGridLayout> grid;
-    std::unique_ptr<QPushButton> fileButton;
-    std::unique_ptr<QWidget> progressBarWidget;
-    std::unique_ptr<QBoxLayout> progressBarBox;
-    std::unique_ptr<QProgressBar> progressBar;
-    std::unique_ptr<QPushButton> uploadButton;
-    std::unique_ptr<QPushButton> verifyButton;
+    QWidget widget;
+    QGridLayout grid;
+    QPushButton refreshButton;
+    QVBoxLayout fileListBox;
+    QWidget fileListWidget;
+    QScrollArea fileListArea;
+    QVBoxLayout fileListAreaBox;
+    QWidget fileListAreaWidget;
+    QProgressBar progressBar;
+    QHBoxLayout progressBarBox;
+    QWidget progressBarWidget;
+    QPushButton uploadButton;
+    QPushButton verifyButton;
 
-    void clearPages();
-
-    std::list<char*> pages;
-    quint16 pageNumber;
+    vector<quint8> bytes;
+    quint32 size;
+    list<char *> pages;
     WorkerThread worker;
-    QString lastPath;
 };
-
-#endif

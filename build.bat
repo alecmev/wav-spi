@@ -1,22 +1,11 @@
 @ECHO OFF
 
-RMDIR /S /Q bin
-IF "%1"=="debug" GOTO debug
-IF "%1"=="release" GOTO release
-GOTO end
+IF "%1"=="debug" SET QMAKEARG="CONFIG += console debug"
+IF "%1"=="release" SET QMAKEARG=""
 
-:debug
-qmake "CONFIG += console debug"
-GOTO make
-
-:release
-qmake
-GOTO make
-
-:make
-CALL make release
-RMDIR /S /Q debug
-RMDIR /S /Q release
-DEL Makefile* wav-spi_plugin_import.cpp
-
-:end
+CALL qmake %QMAKEARG%
+CALL mingw32-make release
+IF NOT %ERRORLEVEL% == 0 EXIT /B %ERRORLEVEL%
+RMDIR /S /Q debug 2>NUL
+RMDIR /S /Q release 2>NUL
+DEL Makefile* wav-spi_plugin_import.cpp 2>NUL

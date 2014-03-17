@@ -1,7 +1,0 @@
--std=c++11
-
--Os -finline-small-functions -momit-leaf-frame-pointer
-
-4: configure -debug-and-release -opensource -static -nomake examples -nomake demos -no-qt3support -no-opengl -no-webkit -no-style-plastique -no-style-cleanlooks -no-style-motif -no-style-cde -no-s60 -platform win32-g++
-
-5: configure -debug-and-release -opensource -static -nomake examples -nomake demos -no-rtti -no-openssl -no-opengl -no-sql-sqlite -platform win32-g++

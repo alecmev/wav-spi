@@ -1,20 +1,14 @@
-#ifndef HELPER
-#define HELPER
+#pragma once
 
-#include <QtCore/QtGlobal>
-
-#define MISO    0x20 // DSR <
-#define MOSI    0x02 // RxD >
+#include <QtGlobal>
 
 class Helper
 {
 public:
     static void encodeByte(
-        char *pageBuffer, quint16 position, char byte, quint8 positionOffset = 0
+        char *buffer, quint16 position, char byte, quint8 positionOffset = 0
     );
     static char decodeByte(
-        char *pageBuffer, quint16 position, quint8 positionOffset = 0
+        char *buffer, quint16 position, quint8 positionOffset = 0
     );
 };
-
-#endif
