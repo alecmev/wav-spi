@@ -109,7 +109,7 @@ void MainWindow::refresh() {
         QDir::SortFlag::Name | QDir::IgnoreCase
     );
     if (files.isEmpty()) {
-        status("INFO: no WAV files found");
+        status("ERROR: no WAV files found");
         buttons(Buttons::Step1);
         return;
     }
@@ -118,11 +118,17 @@ void MainWindow::refresh() {
     size = count*4 + 4;
     bytes.resize(size);
     qToLittleEndian<quint32>(count, &bytes[0]);
+    quint32 goodfiles = count;
     for (quint32 i = 0; i < count; ++i) {
         if (!load(files.at(i), i*4 + 4)) {
-            buttons(Buttons::Step1);
-            return;
+            --goodfiles;
         }
+    }
+
+    if (!goodfiles) {
+        status("ERROR: all files are bad");
+        buttons(Buttons::Step1);
+        return;
     }
 
     for (quint32 i = 0; i < size; i += PAGESIZE) {
@@ -131,8 +137,15 @@ void MainWindow::refresh() {
         pageBuffer[PAGEBITS] = CS;
         quint32 bytesNeeded = (size - i) < PAGESIZE ? (size - i) : PAGESIZE;
         for (quint32 j = i, k = 0; j < i + bytesNeeded; ++j, ++k) {
-            Helper::encodeByte(pageBuffer, k, bytes[i]);
+            Helper::encodeByte(pageBuffer, k, bytes[j]);
         }
+    }
+
+    if (goodfiles < count) {
+        status("INFO: some files are bad");
+    }
+    else {
+        status();
     }
 
     buttons(Buttons::Step2);
@@ -141,59 +154,77 @@ void MainWindow::refresh() {
 bool MainWindow::load(const QString &path, const quint16 offset) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
-        status("ERROR: failed to open " + path);
+        QLabel *tmplabel = new QLabel(
+            path + " [ERROR: failed to open: " + 
+                QString::number(file.error()) + 
+            "]"
+        );
+        tmplabel->setStyleSheet("QLabel { color: red; }");
+        fileListBox.addWidget(tmplabel);
         return false;
     }
     
     quint8 buffer[PAGESIZE];
 
-    file.seek(16);
-    file.read((char *)buffer, 4);
-    quint32 headerSize = qFromLittleEndian<quint32>(buffer);
+    file.seek(20);
     file.read((char *)buffer, 2);
     quint16 audioFormat = qFromLittleEndian<quint16>(buffer);
     file.read((char *)buffer, 2);
     quint16 channels = qFromLittleEndian<quint16>(buffer);
     file.read((char *)buffer, 4);
     quint32 sampleRate = qFromLittleEndian<quint32>(buffer);
-
     file.seek(34);
     file.read((char *)buffer, 2);
     quint16 bytesPerSample = qFromLittleEndian<quint16>(buffer) / 8;
+
+    do {
+        do {
+            file.read((char *)buffer, 2);
+        } while (qFromLittleEndian<quint16>(buffer) != 0x6164);
+        file.read((char *)buffer, 2);
+    } while (qFromLittleEndian<quint16>(buffer) != 0x6174);
     
-    file.seek(headerSize + 24);
     file.read((char *)buffer, 4);
     quint32 dataSize = qFromLittleEndian<quint32>(buffer);
-    quint32 samples = dataSize / 2;
+    quint32 samples = dataSize / bytesPerSample;
     
     QString error = "";
-    if (audioFormat != 1) {
-        error = "only LPCM supported";
-    }
-    else if (channels != 1) {
+    if (1 != channels) {
         error = "only mono supported";
     }
-    else if (bytesPerSample != 2) {
-        error = "only 16 bits per sample supported";
+    else if (1 == audioFormat) {
+        if (2 != bytesPerSample) {
+            error = "only 16 bits per sample supported for LPCM";
+        }
+    }
+    else if (7 == audioFormat) {
+        if (1 != bytesPerSample) {
+            error = "only 8 bits per sample supported for µ-law";
+        }
+    }
+    else {
+        error = "only LPCM and µ-law are supported";
     }
 
     if (!error.isEmpty()) {
-        status("ERROR: " + error);
+        QLabel *tmplabel = new QLabel(path + " [ERROR: " + error + "]");
+        tmplabel->setStyleSheet("QLabel { color: red; }");
+        fileListBox.addWidget(tmplabel);
         file.close();
-        return false;
+        return true;
     }
 
-    bytes.resize(size + dataSize + 8);
+    bytes.resize(size + dataSize + 10);
     qToLittleEndian<quint32>(size, &bytes[offset]);
-    qToLittleEndian<quint32>(sampleRate, &bytes[size]);
-    qToLittleEndian<quint32>(samples, &bytes[size + 4]);
+    qToLittleEndian<quint16>(audioFormat, &bytes[size]);
+    qToLittleEndian<quint32>(sampleRate, &bytes[size + 2]);
+    qToLittleEndian<quint32>(samples, &bytes[size + 6]);
     size += 8;
 
     quint32 remaining = dataSize;
     while (remaining) {
         quint16 readcount = remaining > PAGESIZE ? PAGESIZE : remaining;
         remaining -= readcount;
-        quint32 i = size + 1;
         if (file.read((char *)&bytes[size], readcount) != readcount) {
             status("ERROR: failed to read " + path);
             file.close();
@@ -201,14 +232,14 @@ bool MainWindow::load(const QString &path, const quint16 offset) {
         }
 
         size += readcount;
-        for (; i < size; i += 2) {
-            bytes[i] += 0x80;
-        }
     }
 
     fileListBox.addWidget(new QLabel(
-        path + " [" + 
-            QString::number((dataSize / (sampleRate * 2.0)), 'f', 3) + "s " +
+        path + " [" +
+            QString((audioFormat == 1) ? "LPCM" : "µ-law") + " " +
+            QString::number(
+                    (dataSize / (float)(sampleRate * bytesPerSample)), 'f', 3
+                ) + "s " +
             QString::number(sampleRate) + "Hz " +
             QString::number(qCeil(dataSize / 1024.0)) + " KiB"
         "]"
