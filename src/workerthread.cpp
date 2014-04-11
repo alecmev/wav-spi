@@ -114,41 +114,10 @@ void WorkerThread::start(std::list<char *> &pages, bool isUpload) {
 
 void WorkerThread::run() {
     clock_t timer = clock();
-
-    FT_PROGRAM_DATA info;
-
-    char ManufacturerBuffer[32];
-    char ManufacturerIdBuffer[16];
-    char DescriptionBuffer[64];
-    char SerialNumberBuffer[16];
-
-    info.Signature1 = 0x00000000;
-    info.Signature2 = 0xffffffff;
-    info.Version = 0x00000005;
-    info.Manufacturer = ManufacturerBuffer;
-    info.ManufacturerId = ManufacturerIdBuffer;
-    info.Description = DescriptionBuffer;
-    info.SerialNumber = SerialNumberBuffer;
-
-    bool found = false;
-    for (int i = 0; ; ++i) {
-        if (FT_Open(i, &handle) != FT_OK) {
-            FT_Close(handle);
-            break;
-        }
-
-        if (
-            FT_EE_Read(handle, &info) == FT_OK &&
-            !strcmp(info.Manufacturer, "EKSELCOM")
-        ) {
-            found = true;
-            break;
-        }
-
+    if (
+        FT_OpenEx((void *)"EKSELCOM0", FT_OPEN_BY_DESCRIPTION, &handle) != FT_OK
+    ) {
         FT_Close(handle);
-    }
-
-    if (!found) {
         emit status("ERROR: no device found");
         emit buttons(Buttons::Step2);
         return;
