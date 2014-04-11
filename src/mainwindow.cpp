@@ -73,7 +73,7 @@ MainWindow::MainWindow() {
     widget.setLayout(&grid);
     setCentralWidget(&widget);
 
-    setWindowTitle("wav-spi");
+    setWindowTitle("WAV uploader");
     statusBar()->setSizeGripEnabled(false);
     setFixedSize(384, minimumSizeHint().height());
     setWindowFlags(Qt::MSWindowsFixedSizeDialogHint);
@@ -219,7 +219,7 @@ bool MainWindow::load(const QString &path, const quint16 offset) {
     qToLittleEndian<quint16>(audioFormat, &bytes[size]);
     qToLittleEndian<quint32>(sampleRate, &bytes[size + 2]);
     qToLittleEndian<quint32>(samples, &bytes[size + 6]);
-    size += 8;
+    size += 10;
 
     quint32 remaining = dataSize;
     while (remaining) {
