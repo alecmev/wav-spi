@@ -4,6 +4,9 @@ This project is of no use to anyone, but it can be employed as a real-life
 example of usage of synchronous bitbang mode, available on many FTDI chips,
 which are compatible with FTD2XX driver.
 
+Check out the [`cbus`](https://github.com/jeremejevs/wav-spi/tree/cbus) branch
+to see an earlier version of this utility, implemented in Python.
+
 ### Gotchas
 
 ##### General
